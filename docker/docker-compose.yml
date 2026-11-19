@@ -1,0 +1,80 @@
+version: "3.9"
+
+# deep_pro 基础设施（RAGFlow 使用官方独立 compose 部署，不在此管理）
+# 所有端口均绑定 127.0.0.1：容器间通过服务名互访，宿主机端口仅用于本机调试。
+# 需要局域网访问时临时改成 "0.0.0.0:端口:端口"（云服务器上不要这么做）。
+services:
+  mysql-dw: # 业务数仓（问数NL2SQL目标库，应用侧只读账号）
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: biz_dw
+    ports: ["127.0.0.1:3306:3306"]     # 仅本机可访问（云上安全组再挡一层）
+    volumes: ["dw_data:/var/lib/mysql"]
+
+  mysql-meta: # 问数元数据库（表结构/指标库）
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: wenshu_meta
+    ports: ["127.0.0.1:3307:3306"]
+    volumes: ["meta_data:/var/lib/mysql"]
+
+  qdrant:
+    image: qdrant/qdrant
+    ports: ["127.0.0.1:6333:6333", "127.0.0.1:6334:6334"]
+    volumes: ["qdrant_data:/qdrant/storage"]
+
+  embedding: # 向量化服务：问数图 Qdrant 召回 + RAGFlow 均可调用（OpenAI 兼容 /v1/embeddings）
+    # 模型文件放在 ./embedding/bge-large-zh-v1.5（从 WenShu_python/docker/embedding 复制，或走 HF 镜像下载）
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    command: ["--model-id", "/models/bge-large-zh-v1.5", "--port", "80", "--max-concurrent-requests", "16", "--max-batch-tokens", "16384"]
+    ports: ["127.0.0.1:8081:80"]   # 仅本机/容器内访问，不对外暴露
+    volumes: ["./embedding/bge-large-zh-v1.5:/models/bge-large-zh-v1.5:ro"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 120s            # 首次加载模型需要时间（CPU 约 30~90s）
+
+  elasticsearch:
+    image: elasticsearch:8.14.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports: ["127.0.0.1:9200:9200"]
+    volumes: ["es_data:/usr/share/elasticsearch/data"]
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    volumes: ["minio_data:/data"]
+
+  postgres-checkpoint: # 会话状态持久化（决策7）：重启恢复 + 中断续跑
+    image: postgres:16
+    environment:
+      POSTGRES_USER: deep_pro
+      POSTGRES_PASSWORD: deep_pro
+      POSTGRES_DB: deep_pro
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: ["pg_ckpt_data:/var/lib/postgresql/data"]
+
+  redis: # 检索结果缓存
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: ["redis_data:/data"]
+
+volumes:
+  dw_data:
+  meta_data:
+  qdrant_data:
+  es_data:
+  minio_data:
+  pg_ckpt_data:
+  redis_data:

@@ -1,0 +1,88 @@
+# deep_pro 统一配置（分层：此文件为默认值，.env 覆盖敏感项）
+# 决策依据见《新项目计划书_补充完善版.md》
+
+llm:
+  api_key: ${oc.env:LLM_API_KEY}
+  base_url: ${oc.env:LLM_BASE_URL,https://api.openai.com/v1}
+  model: ${oc.env:LLM_MODEL,gpt-4o}
+
+search:
+  max_calls: ${oc.env:SEARCH_MAX_CALLS,5}      # 网络搜索最多次数（工具层硬编码兜底）
+  min_dimensions: 3                             # 至少覆盖的信息维度（提示词约束）
+  max_results_per_call: 8
+
+nl2sql:
+  max_attempts: ${oc.env:NL2SQL_MAX_ATTEMPTS,3} # 三层降级总预算（决策1）
+  fallback_preview_sql: "select * from {table_name} limit 10"
+
+ragflow:
+  api_key: ${oc.env:RAGFLOW_API_KEY}
+  base_url: ${oc.env:RAGFLOW_BASE_URL,http://localhost:9380}
+  user_dataset_prefix: user_upload_             # 会话级 dataset 前缀（决策2）
+  user_dataset_ttl_hours: ${oc.env:USER_DATASET_TTL_HOURS,24}
+  retrieval:
+    top_k: 8
+    similarity_threshold: 0.2                   # 低于此相似度的切片直接丢弃
+    vector_similarity_weight: 0.3               # 混合检索配比：0.3 = 向量30% + 关键词70%（中文业务资料建议0.2~0.3）
+    rerank_id: ""                               # RAGFlow 已配置的 rerank 模型ID（如 bge-reranker-v2-m3）；空字符串=不做精排
+
+upload:
+  max_mb: ${oc.env:UPLOAD_MAX_MB,20}
+  allowed_ext: [".pdf", ".md"]
+
+minio:
+  endpoint: ${oc.env:MINIO_ENDPOINT,localhost:9000}
+  access_key: ${oc.env:MINIO_ACCESS_KEY,minioadmin}
+  secret_key: ${oc.env:MINIO_SECRET_KEY,minioadmin}
+  bucket: ${oc.env:MINIO_BUCKET,deep-pro}
+  external_endpoint: ${oc.env:MINIO_EXTERNAL_ENDPOINT,http://localhost:9000}  # 写进 md 的外链地址
+
+db:
+  # 业务数仓（只读）
+  dw:
+    host: ${oc.env:DW_MYSQL_HOST,localhost}
+    port: ${oc.env:DW_MYSQL_PORT,3306}
+    user: ${oc.env:DW_MYSQL_USER,readonly_user}
+    password: ${oc.env:DW_MYSQL_PASSWORD}
+    database: ${oc.env:DW_MYSQL_DATABASE,biz_dw}
+  # 问数元数据
+  meta:
+    host: ${oc.env:META_MYSQL_HOST,localhost}
+    port: ${oc.env:META_MYSQL_PORT,3307}
+    user: ${oc.env:META_MYSQL_USER,root}
+    password: ${oc.env:META_MYSQL_PASSWORD}
+    database: ${oc.env:META_MYSQL_DATABASE,wenshu_meta}
+  # 问数图召回：Qdrant（向量）+ ES（关键词），地址由 host/port 统一派生
+  qdrant:
+    host: ${oc.env:QDRANT_HOST,localhost}
+    port: ${oc.env:QDRANT_PORT,6333}
+    embedding_size: ${oc.env:EMBEDDING_DIM,1024}   # 必须与 embedding 模型输出维度一致
+  es:
+    host: ${oc.env:ES_HOST,localhost}
+    port: ${oc.env:ES_PORT,9200}
+    index_name: data_agent
+
+# 向量化服务（TEI，OpenAI 兼容 /v1/embeddings）
+# 用途1：问数图 query embedding（Qdrant 召回列/指标）
+# 用途2：RAGFlow 也可挂同一实例（模型提供商选 OpenAI-API-Compatible，BaseURL 填本服务）
+embedding:
+  host: ${oc.env:EMBEDDING_HOST,localhost}
+  port: ${oc.env:EMBEDDING_PORT,8081}
+  model: ${oc.env:EMBEDDING_MODEL,BAAI/bge-large-zh-v1.5}
+  dim: ${oc.env:EMBEDDING_DIM,1024}
+
+paths:
+  output_dir: output          # 会话生成文件目录
+  upload_dir: updated         # 用户上传原始文件目录
+
+# 会话状态持久化：postgres 支持服务重启恢复 + 中断后"继续执行"（决策7）
+checkpoint:
+  backend: ${oc.env:CHECKPOINT_BACKEND,postgres}   # postgres | memory
+  postgres_dsn: ${oc.env:CHECKPOINT_PG_DSN,postgresql://deep_pro:deep_pro@localhost:5433/deep_pro}
+
+# Redis：检索结果短时缓存（失败自动降级为不缓存）
+redis:
+  url: ${oc.env:REDIS_URL,redis://localhost:6379/0}
+  ttl:
+    tavily: 600        # 网络搜索结果缓存10分钟
+    ragflow: 600       # 知识库检索结果缓存10分钟

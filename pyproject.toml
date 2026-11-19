@@ -1,0 +1,43 @@
+[project]
+name = "deep-pro"
+version = "0.1.0"
+description = "深度研究系统：主智能体 + 网络搜索/数据库查询/RAGFlow知识库 三子智能体（整合 deep_search_pro / WenShu_python / zhanggui_python）"
+requires-python = ">=3.12"
+dependencies = [
+    # ---- Web 服务 ----
+    "fastapi[standard]",
+    "uvicorn[standard]",
+    "python-multipart",
+    # ---- Agent 编排 ----
+    "deepagents",
+    "langchain",
+    "langchain-openai",
+    "langgraph",
+    "langgraph-checkpoint-postgres",
+    "psycopg[binary,pool]",
+    # ---- 缓存 ----
+    "redis",
+    # ---- 检索/数据库 ----
+    "tavily-python",
+    "sqlalchemy",
+    "asyncmy",
+    "mysql-connector-python",
+    "qdrant-client",
+    "elasticsearch[async]",
+    # ---- RAGFlow / 对象存储 ----
+    "ragflow-sdk",
+    "minio",
+    # ---- 文档转换 ----
+    "markdown",
+    "pywin32; sys_platform == 'win32'",
+    # ---- 配置/日志/工具 ----
+    "omegaconf",
+    "pyyaml",
+    "loguru",
+    "python-dotenv",
+    "httpx",
+    "cryptography",
+]
+
+[tool.uv]
+package = false
