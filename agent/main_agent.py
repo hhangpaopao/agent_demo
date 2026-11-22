@@ -12,9 +12,11 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from agent.llm import model
 from agent.prompts import main_agent_content
+from agent.subagents.analysis_agent import analysis_agent
 from agent.subagents.database_query_agent import database_query_agent
 from agent.subagents.knowledge_base_agent import knowledge_base_agent
 from agent.subagents.network_search_agent import network_search_agent
+from agent.subagents.verification_agent import verification_agent
 from core.config import PROJECT_ROOT, cfg
 from core.context import set_session_context, set_thread_context, reset_session_context
 from api.monitor import monitor
@@ -33,7 +35,13 @@ def _build_agent(checkpointer):
         system_prompt=main_agent_content["system_prompt"],
         tools=[generate_markdown, convert_md_to_pdf, read_file_content],
         checkpointer=checkpointer,
-        subagents=[database_query_agent, network_search_agent, knowledge_base_agent],
+        subagents=[
+            database_query_agent,
+            network_search_agent,
+            knowledge_base_agent,
+            analysis_agent,
+            verification_agent,
+        ],
     )
 
 

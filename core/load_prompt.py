@@ -24,6 +24,8 @@ ALIASES = {
     "search": "network_search_agent",
     "db": "database_query_agent",
     "kb": "knowledge_base_agent",
+    "analysis": "analysis_agent",
+    "verification": "verification_agent",
 }
 
 _SUFFIXES = (".md", ".prompt", ".txt")

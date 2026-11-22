@@ -192,7 +192,10 @@ def create_ask_delete(chat_name: str, question: str) -> str:
                 return "当前会话没有用户上传资料。"
             chunks = _retrieval(question, [ds[0].id])
             if not chunks:
-                return "用户上传资料中未检索到相关内容（可尝试换个说法或更具体的关键词）。"
+                return (
+                    "当前会话资料库暂未检索到相关内容。若你刚上传了文件，资料可能还在入库处理中"
+                    "（前端会显示“上传ing”，完成后再试）；也可换个说法或更具体的关键词。"
+                )
             parts = []
             for i, c in enumerate(chunks, 1):
                 score = c.get("similarity")

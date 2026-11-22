@@ -176,8 +176,25 @@ class ToolMonitor:
 
     # ---- 本项目扩展事件 ----
     def report_pipeline(self, stage: str, detail: str):
-        """入库管线进度（pdf_to_md → md_img → upload_ragflow）。"""
+        """入库管线进度（pdf_to_md → md_img → document_summary → upload_ragflow）。"""
         self._emit("pipeline_progress", detail, {"stage": stage, "detail": detail})
+
+    def report_upload(self, status: str, task_id: str, file_name: str = "", detail: str = ""):
+        """上传任务状态（uploading / done / failed）。
+
+        与 pipeline_progress 区分：这是任务级状态，前端据此显示"上传ing"常驻指示，
+        解决"传完立刻提问撞上空检索"的竞态——用户能看到资料还在处理。
+        """
+        message = detail or {
+            "uploading": f"资料上传中：{file_name}",
+            "done": f"资料入库完成：{file_name}",
+            "failed": f"资料入库失败：{file_name}",
+        }.get(status, f"上传状态：{status}")
+        self._emit(
+            "upload_status",
+            message,
+            {"status": status, "task_id": task_id, "file": file_name, "detail": detail},
+        )
 
     def report_error(self, message: str):
         self._emit("error", message, {})

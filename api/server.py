@@ -141,7 +141,8 @@ async def upload_material(session_id: str, file: UploadFile = File(...)):
         f.write(await file.read())
 
     task_id = uuid.uuid4().hex
-    _upload_tasks[task_id] = {"status": "running", "session_id": session_id, "file": file.filename}
+    file_name = Path(file.filename).name
+    _upload_tasks[task_id] = {"status": "running", "session_id": session_id, "file": file_name}
 
     async def _run():
         from import_pipeline.pipeline import run_import_pipeline
@@ -149,16 +150,20 @@ async def upload_material(session_id: str, file: UploadFile = File(...)):
         tokens = (set_session_context(str(PROJECT_ROOT / cfg["paths"]["output_dir"] / f"session_{session_id}")),
                   set_thread_context(session_id))
         try:
+            # 推送"上传ing"：前端显示常驻指示，提示用户资料尚未可检索
+            monitor.report_upload("uploading", task_id, file_name, "资料上传中，入库完成后方可检索")
             result = await run_import_pipeline(session_id, save_path)
             _upload_tasks[task_id].update(status="done", md_path=result["md_path"])
+            monitor.report_upload("done", task_id, file_name, "资料入库完成，现在可以检索")
         except Exception as e:
             _upload_tasks[task_id].update(status="failed", error=str(e))
             monitor.report_pipeline("failed", f"入库失败：{e}")
+            monitor.report_upload("failed", task_id, file_name, f"入库失败：{e}")
         finally:
             reset_session_context(*tokens)
 
     asyncio.create_task(_run())
-    return {"task_id": task_id, "status": "running"}
+    return {"task_id": task_id, "status": "running", "message": "资料上传中，入库完成后可在知识库中检索"}
 
 
 @app.get("/api/upload_status/{task_id}")

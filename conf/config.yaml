@@ -6,6 +6,18 @@ llm:
   base_url: ${oc.env:LLM_BASE_URL,https://api.openai.com/v1}
   model: ${oc.env:LLM_MODEL,gpt-4o}
 
+# 视觉模型（图片转写）：留空则复用 llm 段的凭据与模型（开箱即用）
+vlm:
+  api_key: ${oc.env:VLM_API_KEY,}
+  base_url: ${oc.env:VLM_BASE_URL,}
+  model: ${oc.env:VLM_MODEL,}
+
+# 入库管线：摘要与图片上下文参数
+import_pipeline:
+  summary_max_chars: ${oc.env:SUMMARY_MAX_CHARS,12000}  # 摘要只取文档前 N 字，控 token 成本
+  img_context_length: 200                              # 图片上下文最大字符数
+  vlm_rpm: ${oc.env:VLM_RPM,15}                        # VLM 每分钟请求上限
+
 search:
   max_calls: ${oc.env:SEARCH_MAX_CALLS,5}      # 网络搜索最多次数（工具层硬编码兜底）
   min_dimensions: 3                             # 至少覆盖的信息维度（提示词约束）

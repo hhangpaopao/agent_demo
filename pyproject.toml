@@ -12,6 +12,7 @@ dependencies = [
     "deepagents",
     "langchain",
     "langchain-openai",
+    "openai",
     "langgraph",
     "langgraph-checkpoint-postgres",
     "psycopg[binary,pool]",

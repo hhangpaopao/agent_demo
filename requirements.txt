@@ -26,6 +26,7 @@ deepagents                  # 主智能体 + 子智能体（层级工作流）
 langchain>=1.4
 langchain-core
 langchain-openai>=1.7       # LLM 调用（OpenAI 兼容接口）
+openai                      # VLM 图片转写（node_md_img 直接 import OpenAI 客户端）
 langgraph>=1.2              # 问数 NL2SQL 图（用到 runtime context API）+ checkpointer 宿主
 langgraph-checkpoint-postgres   # 决策7：AsyncPostgresSaver 持久化 checkpoint
 psycopg[binary,pool]        # 同上，连接池；binary 免本地编译
