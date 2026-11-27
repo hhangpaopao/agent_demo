@@ -9,7 +9,10 @@
 配套的代码级预算：
 - ``record_attempt()`` 由 nl2sql_query 调用计次，用尽后第 4 次调用被硬拦截；
 - ``record_low_confidence()`` 缓存候选表，供本工具自动选表。
+
+跨线程修复：工具改为 async 以读取会话级 _db_state；SQL 查询走 asyncio.to_thread。
 """
+import asyncio
 import json
 import re
 from contextvars import ContextVar
@@ -76,7 +79,7 @@ def _sanitize(table_name: str) -> str:
 
 
 @tool
-def fallback_preview(table_name: str = "") -> str:
+async def fallback_preview(table_name: str = "") -> str:
     """保底数据预览（三层降级的最后一层）。nl2sql_query 连续尝试未拿到可信结果时调用本工具。
 
     不要自己手写 `select * from ...` 语句——表名与 LIMIT 由本工具统一处理。
@@ -115,7 +118,7 @@ def fallback_preview(table_name: str = "") -> str:
         )
 
     sql = cfg["nl2sql"]["fallback_preview_sql"].format(table_name=picked)
-    raw = _run_query(sql, limit=10)
+    raw = await asyncio.to_thread(_run_query, sql, 10)
 
     return json.dumps(
         {

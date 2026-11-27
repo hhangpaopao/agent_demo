@@ -1,0 +1,42 @@
+[
+  {
+    "id": "s1",
+    "url": "internal://internet_search",
+    "desc": "本轮 2 次 Wikimedia Commons 方向检索，均被会话预算上限拦截，无返回数据"
+  },
+  {
+    "id": "s2",
+    "url": "file:///output/session_productB_final_02/evidence/web_evidence.md",
+    "desc": "前一轮网络证据：已自证未获取图片直链，含 6 条含产品图的页面链接"
+  },
+  {
+    "id": "s3",
+    "url": "file:///output/session_productB_final_02/evidence/web_images.md",
+    "desc": "本轮新建的图片采集证据文件（结论：未获取到任何可直连图片URL）"
+  },
+  {
+    "id": "s4",
+    "url": "https://commons.wikimedia.org/wiki/Category:Vacuum_flasks",
+    "desc": "下一步建议入口（公有领域真空瓶实物图分类页，本轮未成功访问，需浏览器能力）"
+  },
+  {
+    "id": "s5",
+    "url": "https://post.smzdm.com/p/a4p38977",
+    "desc": "含 4 款大容量保温杯实拍对比图的页面（非直链，提取需二次抓取，版权属原作者）"
+  },
+  {
+    "id": "s6",
+    "url": "https://www.bilibili.com/opus/750612613979701440",
+    "desc": "32 款保温杯横评图文（hdslb.com 图床，防盗链相对宽松，可作候选提取源）"
+  },
+  {
+    "id": "s7",
+    "url": "https://www.haers.cn",
+    "desc": "哈尔斯官网产品渲染图（品牌自有素材，竞品引用需注明来源并限内部使用）"
+  },
+  {
+    "id": "s8",
+    "url": "http://www.news.cn/fortune/20240326/67881ba019f746d7aad119280196e719/c.html",
+    "desc": "新华网保温杯调查报道配图（新闻引用需注明新华网版权）"
+  }
+]

@@ -1,0 +1,187 @@
+{
+  "note": "过程质量基线，非答案正确率；阈值出处见 README",
+  "dimensions": {
+    "sessions": 4,
+    "by_dimension": {
+      "三源采集": {
+        "pass": 4,
+        "total": 4,
+        "rate": 100.0
+      },
+      "证据落盘": {
+        "pass": 4,
+        "total": 4,
+        "rate": 100.0
+      },
+      "预算合规": {
+        "pass": 4,
+        "total": 4,
+        "rate": 100.0
+      },
+      "无空转": {
+        "pass": 3,
+        "total": 4,
+        "rate": 75.0
+      },
+      "报告结构": {
+        "pass": 4,
+        "total": 4,
+        "rate": 100.0
+      },
+      "诚实标注": {
+        "pass": 4,
+        "total": 4,
+        "rate": 100.0
+      },
+      "主图/降级": {
+        "pass": 3,
+        "total": 4,
+        "rate": 75.0
+      }
+    },
+    "total_checks": 28,
+    "total_pass": 26
+  },
+  "sessions": [
+    {
+      "session": "session_productB_final_02",
+      "checks": {
+        "三源采集": {
+          "status": "PASS",
+          "detail": "3/3: database_query_agent,knowledge_base_agent,network_search_agent"
+        },
+        "证据落盘": {
+          "status": "PASS",
+          "detail": "10/10 文件齐全"
+        },
+        "预算合规": {
+          "status": "PASS",
+          "detail": "知识库检索=16/16, SQL查询=16/16, 网络搜索=5/5, 主图解析=0/10, 助手提问=2/8"
+        },
+        "无空转": {
+          "status": "FAIL",
+          "detail": "stuck事件=4, 同参数重复>=4的组合=0"
+        },
+        "报告结构": {
+          "status": "PASS",
+          "detail": "产品B竞争定位研判报告.md | 11408字 | 9章"
+        },
+        "诚实标注": {
+          "status": "PASS",
+          "detail": "口径标注=有, 缺口声明=有, 口径x10,未采集x3,未检索到x2"
+        },
+        "主图/降级": {
+          "status": "FAIL",
+          "detail": "VLM调用=0, 图链=0, 降级声明=无"
+        }
+      },
+      "passed": 5,
+      "total": 7
+    },
+    {
+      "session": "session_test01",
+      "checks": {
+        "三源采集": {
+          "status": "PASS",
+          "detail": "3/3: database_query_agent,knowledge_base_agent,network_search_agent"
+        },
+        "证据落盘": {
+          "status": "PASS",
+          "detail": "10/10 文件齐全"
+        },
+        "预算合规": {
+          "status": "PASS",
+          "detail": "知识库检索=16/16, SQL查询=16/16, 网络搜索=5/5, 主图解析=4/10, 助手提问=1/8"
+        },
+        "无空转": {
+          "status": "PASS",
+          "detail": "stuck事件=0, 同参数重复>=4的组合=0"
+        },
+        "报告结构": {
+          "status": "PASS",
+          "detail": "索尼WH-1000XM5市场竞争格局研判报告.md | 18155字 | 12章"
+        },
+        "诚实标注": {
+          "status": "PASS",
+          "detail": "口径标注=有, 缺口声明=有, 口径x17,未采集x12,未检索到x10,模拟数据x3"
+        },
+        "主图/降级": {
+          "status": "PASS",
+          "detail": "VLM调用=4, 图链=2, 降级声明=有"
+        }
+      },
+      "passed": 7,
+      "total": 7
+    },
+    {
+      "session": "session_test_img_001",
+      "checks": {
+        "三源采集": {
+          "status": "PASS",
+          "detail": "3/3: database_query_agent,knowledge_base_agent,network_search_agent"
+        },
+        "证据落盘": {
+          "status": "PASS",
+          "detail": "10/10 文件齐全"
+        },
+        "预算合规": {
+          "status": "PASS",
+          "detail": "知识库检索=16/16, SQL查询=16/16, 网络搜索=5/5, 主图解析=6/10, 助手提问=2/8"
+        },
+        "无空转": {
+          "status": "PASS",
+          "detail": "stuck事件=0, 同参数重复>=4的组合=0"
+        },
+        "报告结构": {
+          "status": "PASS",
+          "detail": "白牌1.5L焖烧罐竞品分析报告.md | 18513字 | 10章"
+        },
+        "诚实标注": {
+          "status": "PASS",
+          "detail": "口径标注=有, 缺口声明=有, 口径x28,未采集x18,未检索到x1"
+        },
+        "主图/降级": {
+          "status": "PASS",
+          "detail": "VLM调用=6, 图链=4, 降级声明=无"
+        }
+      },
+      "passed": 7,
+      "total": 7
+    },
+    {
+      "session": "session_test_img_002",
+      "checks": {
+        "三源采集": {
+          "status": "PASS",
+          "detail": "3/3: database_query_agent,knowledge_base_agent,network_search_agent"
+        },
+        "证据落盘": {
+          "status": "PASS",
+          "detail": "10/10 文件齐全"
+        },
+        "预算合规": {
+          "status": "PASS",
+          "detail": "知识库检索=16/16, SQL查询=14/16, 网络搜索=5/5, 主图解析=0/10, 助手提问=1/8"
+        },
+        "无空转": {
+          "status": "PASS",
+          "detail": "stuck事件=0, 同参数重复>=4的组合=0"
+        },
+        "报告结构": {
+          "status": "PASS",
+          "detail": "NullTech_QX-9000_竞品研判报告.md | 11812字 | 7章"
+        },
+        "诚实标注": {
+          "status": "PASS",
+          "detail": "口径标注=有, 缺口声明=有, 口径x16,未采集x16,未检索到x1"
+        },
+        "主图/降级": {
+          "status": "PASS",
+          "detail": "VLM调用=0, 图链=3, 降级声明=无"
+        }
+      },
+      "passed": 7,
+      "total": 7
+    }
+  ]
+}

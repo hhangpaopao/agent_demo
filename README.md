@@ -21,14 +21,19 @@ Main Agent（项目经理：拆解/汇总/generate_markdown/convert_md_to_pdf）
 cd docker && docker compose up -d
 
 # 2. 配置
-cp .env.example .env   # 填写 LLM/Tavily/RAGFlow/数据库等
+cp .env.example .env   # 填写 LLM/Tavily/RAGFlow/数据库等（MinerU 无需填，见下）
 
 # 3. 合并三个既有项目代码（从桌面目录拉取）
 python scripts/vendor_projects.py
 
 # 4. 安装依赖并启动
-uv sync
+uv sync                # 最小集（不含 mineru）；要 PDF 上传再 uv add 'mineru[all]'
 uvicorn api.server:app --reload
+
+# PDF 上传链路的 MinerU 走本地 CLI（node_pdf_to_md 调 `mineru -p ... --source local`）：
+#   - 默认最小集未装 mineru；需 PDF 上传时执行 uv add 'mineru[all]'，不需要 .env 里配 MINERU_BASE_URL / MINERU_API_TOKEN
+#   - 首次解析 PDF 时 MinerU 自动下载解析模型，之后走本地缓存
+#   - 若 `mineru` 命令报未找到，检查 uv sync 是否完整执行
 ```
 
 ## 云服务器部署

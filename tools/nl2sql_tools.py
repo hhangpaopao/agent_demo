@@ -2,7 +2,11 @@
 
 - 问题进、结构化结果出；召回-生成SQL-校验-修正的复杂度封在图内部
 - 返回结构化失败信号（status/missing/top_candidates），供 db 子智能体执行三层降级
+
+跨线程修复：工具改为 async，让 3 次预算的 ContextVar 在事件循环内可见；
+问数图是同步阻塞调用（内部另起 loop），用 asyncio.to_thread 包一层避免卡事件循环。
 """
+import asyncio
 import json
 
 from langchain_core.tools import tool
@@ -14,7 +18,7 @@ from tools.wenshu_runner import run_wenshu
 
 
 @tool
-def nl2sql_query(question: str) -> str:
+async def nl2sql_query(question: str) -> str:
     """企业业务数据查询（NL2SQL）。自然语言问题进，返回结构化结果：
     - status=ok：data 为 CSV（首行列名），附带生成的 sql 供核查
     - status=low_confidence：召回置信度低，返回 missing（未命中的指标/表）与
@@ -40,7 +44,23 @@ def nl2sql_query(question: str) -> str:
         )
 
     try:
-        state = run_wenshu(question)
+        # 问数图同步阻塞（内部 run_coroutine_threadsafe + fut.result），丢线程池运行
+        state = await asyncio.to_thread(run_wenshu, question)
+    except TimeoutError as e:
+        # 超时单独处理：旧逻辑把它归为"基础设施故障 + 可原样重试"，模型照做后
+        # 3 次预算全耗在同一超时上（实测每次约 147s）。超时明确不可重试。
+        return json.dumps(
+            {
+                "status": "timeout",
+                "error": f"查询引擎超时：{e}",
+                "retryable": False,
+                "hint": (
+                    "超时不要原样重试（每次约 2 分钟）。请改用 execute_sql_query 手写 SQL，"
+                    "或调用 fallback_preview 保底并如实标注未采集。"
+                ),
+            },
+            ensure_ascii=False,
+        )
     except Exception as e:
         # 基础设施类故障不消耗尝试预算（否则一次 ES/Qdrant 抖动就会把 3 次额度吃光）
         logger.exception(f"[nl2sql] 问数图执行异常：{e}")

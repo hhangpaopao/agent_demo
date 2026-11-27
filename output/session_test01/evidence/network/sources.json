@@ -1,0 +1,92 @@
+[
+  {
+    "id": "s1",
+    "url": "https://www.zhihu.com/tardis/bd/art/530301798",
+    "desc": "知乎·雪夜阳光 XM5 国行/海外版价格与区别（编辑于2024-06-23）；自媒体，二手"
+  },
+  {
+    "id": "s2",
+    "url": "https://www.jd.com/zuozhe/67288504d13cc925f72a.html",
+    "desc": "京东机型聚合页：XM5/QC Ultra/MOMENTUM4 标题与评论量级（自营+第三方SKU）；平台页面快照，抓取时间不明"
+  },
+  {
+    "id": "s3",
+    "url": "https://www.jd.com/jiage/652b6cad2cdb20f4233.html",
+    "desc": "京东索尼头戴价格行情页：WH-1000XM6 已在售、配色矩阵、评论量级"
+  },
+  {
+    "id": "s4",
+    "url": "https://www.amazon.com/clp/B09XS7JWHH",
+    "desc": "Amazon WH-1000XM5 类目页：美区价格/List Price/折扣/星级/月销标签；含 Black Friday Deal，快照推断2025黑五"
+  },
+  {
+    "id": "s5",
+    "url": "https://www.jd.com/phb/key_652a2e032a0c2a5ae1b.html",
+    "desc": "京东降噪耳机排行榜页：XM5/XM6/AirPods Max 2 排名与评论摘要；含营销堆词，可信度下调"
+  },
+  {
+    "id": "s6",
+    "url": "https://www.soundguys.com/sony-wh-1000xm5-review-71783",
+    "desc": "SoundGuys WH-1000XM5 评测：8.6分、优缺点、实名 owner 差评、$226.20 比价"
+  },
+  {
+    "id": "s7",
+    "url": "https://www.soundguys.com/sennheiser-momentum-4-wireless-vs-bose-quietcomfort-ultra-headphones-140166",
+    "desc": "SoundGuys M4 vs QC Ultra 横评：ANC 85% vs 75%、MDAQS 4.6、M4 8分"
+  },
+  {
+    "id": "s8",
+    "url": "https://recordingnow.com/blog/sennheiser-momentum-4-vs-bose-quietcomfort-ultra",
+    "desc": "Recording Now 2025 横评：QC Ultra 9.2 vs M4 8.7、价值分、街价$349/$290"
+  },
+  {
+    "id": "s9",
+    "url": "https://www.youtube.com/watch?v=uuAJz9zg7LM",
+    "desc": "Recording Now 同名视频：总分与价格原话（与s8同源，非独立双源）"
+  },
+  {
+    "id": "s10",
+    "url": "https://www.whathifi.com/advice/bose-vs-sennheiser-headphones-which-should-you-buy",
+    "desc": "What Hi-Fi Bose vs Sennheiser：ANC最优、空间音频hit-and-miss、24h vs 60h"
+  },
+  {
+    "id": "s11",
+    "url": "https://zhuanlan.zhihu.com/p/557586002",
+    "desc": "知乎/ZOL MOMENTUM 4 中文评测：首发2699元、60h续航、aptX Adaptive、耳压感对比"
+  },
+  {
+    "id": "s12",
+    "url": "https://zhuanlan.zhihu.com/p/661453069",
+    "desc": "知乎 Bose QC消噪耳机Ultra 实测：3599元、24h、SBC/AAC、可折叠、CustomTune"
+  },
+  {
+    "id": "s13",
+    "url": "https://www.youtube.com/watch?v=iuwnm1kajE8",
+    "desc": "YouTube QC Ultra 2 vs MOMENTUM 4：二代存在、30h、通透模式与风噪对比；社媒主观"
+  },
+  {
+    "id": "s14",
+    "url": "https://www.ithome.com/0/729/114.htm",
+    "desc": "IT之家 WF-1000XM5 双11促销（TWS，非头戴）：1999→1499、12期免息、晒单返E卡；含广告声明"
+  },
+  {
+    "id": "s15",
+    "url": "https://img12.360buyimg.com/n1/jfs/t1/397954/5/4251/67974/699e97b7F4755696b/008332032045b63b.jpg",
+    "desc": "索尼 WH-1000XM6 京东主图直链：图上文案「无声 更有声」「WH-1000XM6」「索尼双芯超旗舰头戴降噪耳机」（上中分区）"
+  },
+  {
+    "id": "s16",
+    "url": "https://img12.360buyimg.com/n1/jfs/t1/146808/16/27291/56467/627897dbE57495d32/c1e27109b41e1d8c.jpg",
+    "desc": "索尼京东主图（XM5候选）：仅识别到「SONY（上左）」，无卖点文案"
+  },
+  {
+    "id": "s17",
+    "url": "https://shop.theclub.com.hk/media/catalog/product/cache/cc8bfa796eb775dcec1e9f8cb1f3d4bf/b/o/bose_ultraeb2_all_1.jpg",
+    "desc": "Bose QC Ultra 港版零售站白底图：仅识别到「BOSE（中右）」"
+  },
+  {
+    "id": "s18",
+    "url": "https://cdn-general.cybassets.com/media/W1siZiIsIjIzNjY0L3Byb2R1Y3RzLzUwNDc3OTQxLzE3Mjk0OTIwNTRfYmFlNzJhZTNkNWYxZWI2Mjg5NzYuanBlZyJdLFsicCIsInRodW1iIiwiNjAweDYwMCJdXQ.jpeg?sha=c68900ec1bbbabb4",
+    "desc": "Bose 图片直链：analyze_product_image 解析失败（Missing Content-Length），未取到任何图上文案"
+  }
+]

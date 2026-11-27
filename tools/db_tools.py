@@ -1,7 +1,12 @@
 """数据库直查工具：list_tables / preview / 只读 execute_sql_query。
 
 注意：execute_sql_query 仅作为 nl2sql 的降级兜底（计划书决策1），已加只读校验。
+
+跨线程修复：工具入口改为 async —— 即便本工具不读会话目录，内部 monitor.report_tool
+也要靠 session_id ContextVar 拿会话号；同步工具跑在线程池会丢 session_id，事件推不到前端。
+MySQL 阻塞调用用 asyncio.to_thread 包一层。_run_query 保持同步，供 db_fallback 经 to_thread 调用。
 """
+import asyncio
 import re
 
 from langchain_core.tools import tool
@@ -39,14 +44,14 @@ def _run_query(sql: str, limit: int = 100) -> str:
 
 
 @tool
-def list_sql_tables() -> str:
+async def list_sql_tables() -> str:
     """查询业务库中所有可用的表名。在任何数据查询前先调用本工具确认表名。"""
     monitor.report_tool(tool_name="数据库表名查询：list_sql_tables", args={})
-    return _run_query("show tables")
+    return await asyncio.to_thread(_run_query, "show tables")
 
 
 @tool
-def get_table_data(table_name: str) -> str:
+async def get_table_data(table_name: str) -> str:
     """预览指定表的数据（至多100条，CSV格式：首行列名）。
     用于确认表结构与数据格式，为 nl2sql 改写或手写SQL提供 schema 上下文。
     :param table_name: 表名
@@ -54,11 +59,11 @@ def get_table_data(table_name: str) -> str:
     monitor.report_tool(tool_name="数据库表预览：get_table_data", args={"table_name": table_name})
     if not re.fullmatch(r"[0-9a-zA-Z_$.]+", table_name):
         return "表名不合法，仅允许字母数字下划线。"
-    return _run_query(f"select * from {table_name} limit 100")
+    return await asyncio.to_thread(_run_query, f"select * from {table_name} limit 100")
 
 
 @tool
-def execute_sql_query(query: str) -> str:
+async def execute_sql_query(query: str) -> str:
     """执行自定义只读 SQL（仅 SELECT，自动附加 LIMIT 保护）。
     仅用于不涉及指标库标准指标的简单查询兜底；涉及标准指标必须走 nl2sql_query。
     :param query: SELECT 语句
@@ -71,4 +76,4 @@ def execute_sql_query(query: str) -> str:
         return "检测到非只读关键字，已拒绝执行。"
     if not re.search(r"\blimit\b", stripped, re.I):
         stripped += " limit 100"
-    return _run_query(stripped)
+    return await asyncio.to_thread(_run_query, stripped)

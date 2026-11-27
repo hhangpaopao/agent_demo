@@ -1,0 +1,73 @@
+[
+  {
+    "id": "s1",
+    "url": "https://kfqgw.beijing.gov.cn/zwgkkfq/ztzl/qwpy/202603/t20260325_4565486.html",
+    "desc": "北京经开区管委会「权威辟谣」专栏《揭开量子骗局》(2026-03-25，中央网信办举报中心指导) — 一级政府来源"
+  },
+  {
+    "id": "s2",
+    "url": "https://www.ndrc.gov.cn/fggz/jyysr/dfjx/202106/t20210630_1285168.html",
+    "desc": "国家发改委官网转载《量子消费品看起来高大上实际上是伪科技》(2021-06-30，原载工人日报，引中消协消费警示) — 一手官方"
+  },
+  {
+    "id": "s3",
+    "url": "https://www.piyao.org.cn/2020-01/16/c_1210437886.htm",
+    "desc": "中国互联网联合辟谣平台/新华每日电讯《警惕！量子+生活产品几乎都是骗人的》(2020-01-16) — 权威辟谣平台"
+  },
+  {
+    "id": "s4",
+    "url": "https://www.stdaily.com/web/gdxw/2025-11/25/content_437025.html",
+    "desc": "科技日报《量子骗局层出不穷 如何辨别真科技与伪概念》(2025-11-25) — 权威行业媒体+专家访谈"
+  },
+  {
+    "id": "s5",
+    "url": "https://www.sina.cn/news/detail/5360795631749389.html",
+    "desc": "新浪「市场监管提醒」：量子水杯能治病没有科学依据 — 媒体转述监管口径"
+  },
+  {
+    "id": "s6",
+    "url": "https://www.xinhuanet.com/politics/2018-03/14/c_1122537465.htm",
+    "desc": "新华社《量子还是骗子？——量子商品市场调查》(2018-03-14) — 一手调查报道，含价格样本"
+  },
+  {
+    "id": "s7",
+    "url": "https://news.sina.cn/gn/2017-06-30/detail-ifyhryex5631752.d.html?vt=4",
+    "desc": "新浪新闻《量子水杯卖到1万元竟供不应求？传销骗局！》(2017-06-30，龙爱量子案)",
+    "note": "历史案例"
+  },
+  {
+    "id": "s8",
+    "url": "https://pub.timedg.com/a/2020-01/16/AP610fae59e4b0a86f2ebec3a2.html",
+    "desc": "时间周报/东莞《量子水杯装酒喝一斤不头疼？专家：拼凑名词的骗局》(2020-01-16)"
+  },
+  {
+    "id": "s9",
+    "url": "https://popseo.jd.com/chanpin/83550.html",
+    "desc": "京东「智能恒温杯」品类页(32万件商品，含品牌/容量/材质/评论量，价格字段未渲染) — 一手平台数据(部分)"
+  },
+  {
+    "id": "s10",
+    "url": "https://www.taobao.com/list/product/top-rated/%E6%99%BA%E8%83%BD%E6%B8%A9%E6%8E%A7%E6%9D%AF.htm",
+    "desc": "淘宝「智能温控杯」月销口碑页(79元/158元标价、4.8-5.0分、评论标签与问大家原声) — 一手平台UGC"
+  },
+  {
+    "id": "s11",
+    "url": "https://www.zhihu.com/tardis/bd/art/355054952",
+    "desc": "知乎保温杯/烧水杯横评(2021-11-26，169/199/158/299元价格锚点与规格) — UGC自媒体，时效偏旧，单源"
+  },
+  {
+    "id": "s12",
+    "url": "https://www.jd.com/phb/61967b736c92e73c694b.html",
+    "desc": "京东智能保温杯品牌排行榜(前十以钛材质/茶水分离为主) — 一手平台榜单"
+  },
+  {
+    "id": "s13",
+    "url": "https://kuku.baidu.com/landing/tscp_doc/6758549495e8c97752386f6ecba7016b",
+    "desc": "百度文库落地页《2025保温杯热门品牌横向对比》(宫菱/海尔/乐扣/北鼎/京造/小米) — 低可信度内容聚合页"
+  },
+  {
+    "id": "s14",
+    "url": "https://hifi-wiki.com/index.php/Pioneer_QX-9900",
+    "desc": "Pioneer QX 系列四声道功放资料(证明 QX-9000 命中项为音响器材噪声，非水杯)"
+  }
+]

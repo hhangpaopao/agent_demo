@@ -1,97 +1,56 @@
-# ============================================================================
-# deep_pro 依赖清单（供 uv add 使用）
-# ----------------------------------------------------------------------------
-# 用法（任选其一）：
-#   uv add -r requirements.txt          # 推荐：写入 pyproject 并同步环境
-#   uv pip install -r requirements.txt  # 只安装，不改 pyproject
+# deep_pro 依赖清单（云服务器最小集：不含 mineru[all]）
 #
-# 约定：
-#   1) 只列「直接依赖」，版本交给 uv 解析（避免锁死传递依赖），需要卡版本的已注明；
-#   2) 与 pyproject.toml 的 dependencies 保持一致，并补充了 vendor 代码
-#      （WenShu 问数图 / 掌柜入库节点）实际 import 的包；
-#   3) Python 要求 >= 3.12。
+# 重要说明：
+# - 本项目用 uv 管理，权威依赖源是 pyproject.toml（已列全所有依赖）。
+# - `uv add <包>` 是往 pyproject.toml 追加依赖，不会读本文件。
+# - 本文件供两种场景参考：① pip / `uv pip install -r requirements.txt`；② 审阅要装什么。
+# - 云服务器推荐直接：`uv sync --no-install-package mineru`（跳过 GB 级 torch+模型）。
+# - 要全量（含 mineru PDF 解析）：把文末 mineru 那行取消注释，或 `uv sync`。
 #
-# 标记说明：
-#   [核心] 缺了服务起不来     [可选] 缺了功能降级/按需启用
-# ============================================================================
+# 分区与 pyproject.toml 一致，版本约束由 uv 解析，此处不锁死版本。
 
-# ---------------------------- Web 服务 [核心] ----------------------------
-fastapi[standard]
-uvicorn[standard]
-python-multipart            # 上传接口表单（POST /api/upload_material）
-websockets                  # /ws/{session_id} 依赖（uvicorn[standard] 已含，显式列出便于排障）
+# --------------------------- Web 服务 ---------------------------
+fastapi[standard]              # REST + WebSocket
+uvicorn[standard]              # ASGI 服务器
+python-multipart               # 文件上传 (UploadFile)
 
-# ---------------------- Agent 编排 / LangGraph 状态 ----------------------
-deepagents                  # 主智能体 + 子智能体（层级工作流）
-langchain>=1.4
-langchain-core
-langchain-openai>=1.7       # LLM 调用（OpenAI 兼容接口）
-openai                      # VLM 图片转写（node_md_img 直接 import OpenAI 客户端）
-langgraph>=1.2              # 问数 NL2SQL 图（用到 runtime context API）+ checkpointer 宿主
-langgraph-checkpoint-postgres   # 决策7：AsyncPostgresSaver 持久化 checkpoint
-psycopg[binary,pool]        # 同上，连接池；binary 免本地编译
+# --------------------------- Agent 编排 ---------------------------
+deepagents                     # 主智能体 + subagents 框架
+langchain                      # LLM 抽象
+langchain-openai               # OpenAI 兼容模型适配
+openai                         # LLM / VLM / embedding 客户端
+langgraph                      # 状态图编排
+langgraph-checkpoint-postgres  # PG checkpointer（重启恢复 / 中断续跑）
+psycopg[binary,pool]           # PG 异步连接池
 
-# ------------------------------ 缓存 [可选] ------------------------------
-# 决策7：Tavily / RAGFlow 检索结果短缓存；未装或连不上时自动降级为不缓存
-redis
+# --------------------------- 缓存 ---------------------------
+redis                          # 检索结果短时缓存
 
-# ------------------------ 检索 / 业务数据库 [核心] ------------------------
-tavily-python               # 网络搜索子智能体
-sqlalchemy                  # 业务库 ORM / 引擎
-asyncmy                     # 问数图 MySQL 异步驱动（mysql+asyncmy://）
-mysql-connector-python      # 备用同步驱动（vendor 中部分客户端使用）
-qdrant-client               # 问数：列/值语义召回向量库
-elasticsearch[async]>=8,<9  # 问数：指标/值关键词召回（9.x 有破坏性变更，卡在 8.x）
+# --------------------------- 检索 / 数据库 ---------------------------
+tavily-python                  # 网络搜索
+sqlalchemy                     # ORM（辅助）
+asyncmy                        # 异步 MySQL 驱动（问数图）
+mysql-connector-python         # 同步 MySQL 驱动（db_tools 直查）
+qdrant-client                  # 向量召回（问数图）
+elasticsearch[async]>=8,<9      # 关键词召回（问数图）；服务端 8.14，勿升 9.x
+jieba>=0.42.1                  # 中文分词：问数图关键词提取（vendor/wenshu 节点依赖）
 
-# ------------------------- RAGFlow / 对象存储 ---------------------------
-ragflow-sdk                 # 内部知识库助手 + 会话资料库 dataset 管理
-minio                       # 文档图片存储（md 内嵌图片链接）
+# --------------------------- RAGFlow / 对象存储 ---------------------------
+ragflow-sdk                    # 知识库检索 / dataset 管理
+minio                          # 用户上传图片存储
 
 # --------------------------- 文档处理 / 导出 ---------------------------
-markdown                    # md → html 中间态（再转 PDF/Word）
-pywin32; sys_platform == "win32"   # Word COM 转 PDF（决策5：按需导出）
+markdown                       # md → html 中间态
+pywin32; sys_platform == "win32"   # 仅 Windows 本地开发；Linux 云服务器自动跳过
+# mineru[all]                   # PDF → MD 本地 CLI（含 torch + 模型，GB 级；云服务器装前先确认磁盘/网络）
 
-# ------------------------ 配置 / 日志 / HTTP / 加密 ------------------------
-omegaconf                   # conf/config.yaml 分层配置 + ${oc.env:...} 注入
-pyyaml
-loguru
-python-dotenv
-httpx                       # RAGFlow /api/v1/retrieval 原生 HTTP 调用（带混合检索参数）
-cryptography                # 问数：数据库密码加解密
+# --------------------------- 配置 / 日志 / 工具 ---------------------------
+omegaconf                      # 分层配置 + ${oc.env:} 环境变量插值
+pyyaml                         # YAML 解析
+loguru                         # 结构化日志（session_id 注入）
+python-dotenv                  # 读取 .env
+httpx                          # 异步 HTTP
+cryptography                   # 加密依赖
 
-# ============================================================================
-# vendored 代码额外依赖（运行 scripts/vendor_projects.py 之后需要）
-# ============================================================================
-
-# ---- vendor/wenshu/app（问数 NL2SQL 图）----
-jieba                       # 中文分词（关键词提取节点）
-pydantic                    # app 内数据模型
-sentry_sdk                  # app/core/context.py 借用 sentry_sdk.utils.ContextVar
-
-# ---- vendor/zhanggui（掌柜入库管线最小集合）----
-pymongo                     # clients/mongo_history_utils.py（导入任务历史）
-requests                    # 部分客户端走同步 HTTP（MinerU 远程接口等）
-numpy                       # 图像/数组处理兜底（node_md_img 依赖链常见）
-
-# ============================================================================
-# 不要安装：属已裁剪的 Milvus 链路（决策3：检索全走 RAGFlow）
-# ----------------------------------------------------------------------------
-#   pymilvus / pymilvus-model      # Milvus 向量库
-#   FlagEmbedding / modelscope     # BGE 向量化模型
-#   torch / torchvision / torchaudio  # 上述模型的运行时（3GB+）
-#   magic-pdf                      # MinerU 本地版；本项目用远程 API（MINERU_BASE_URL）
-#   neo4j                          # 掌柜图谱检索链路，未融入
-#   flagembedding 的 reranker 依赖  # 精排交给 RAGFlow 的 rerank_id（决策8）
-#
-# 若之后确需在本机跑 BGE/Milvus（例如 RAGFlow 改自建），再单独加：
-#   uv add pymilvus[model] FlagEmbedding torch
-# ============================================================================
-
-# ======================= 运行环境（非 pip 依赖，供参考） =======================
-# 1. RAGFlow：官方 docker compose 单独部署（http://localhost:9380），需在界面配置
-#    embed 模型与 rerank 模型（决策8），把 rerank 模型 ID 填进 config.yaml 的
-#    ragflow.retrieval.rerank_id
-# 2. PostgreSQL（checkpoint 用，端口 5433，避开业务库）+ Redis：见 docker/docker-compose.yml
-# 3. MinerU：远程服务，填 .env 的 MINERU_BASE_URL / MINERU_API_TOKEN
-# 4. Windows 下 PDF 导出依赖本机已安装 Microsoft Word（pywin32 走 COM）
-# ============================================================================
+# --------------------------- 测试 ---------------------------
+pytest

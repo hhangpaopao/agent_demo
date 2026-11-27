@@ -5,10 +5,14 @@
 - 用户中断任务后，状态保留在最后一次 checkpoint，可用 {"type":"resume"} 续跑。
 PostgreSQL 不可用时自动降级 InMemorySaver（仅进程内），并在日志中告警。
 """
+from contextvars import ContextVar
+
 from loguru import logger
 
 from deepagents import create_deep_agent
 from langgraph.checkpoint.memory import InMemorySaver
+from langchain.agents.middleware import AgentMiddleware
+from langchain_core.messages import ToolMessage
 
 from agent.llm import model
 from agent.prompts import main_agent_content
@@ -28,12 +32,38 @@ _agent = None
 _saver = None
 _pool = None
 
+# 采集类子 agent 单轮派发上限：超过上限直接拒绝，防止主 agent 反复补采空转。
+_COLLECTORS = {"database_query_agent", "knowledge_base_agent", "network_search_agent"}
+_dispatch_count: ContextVar[dict] = ContextVar("dispatch_count", default={})
+
+
+class _DispatchLimit(AgentMiddleware):
+    name = "dispatch_limit"
+
+    async def awrap_tool_call(self, request, handler):
+        call = request.tool_call
+        if call["name"] == "task":
+            sub = (call["args"] or {}).get("subagent_type", "")
+            if sub in _COLLECTORS:
+                counts = _dispatch_count.get()
+                counts[sub] = counts.get(sub, 0) + 1
+                if counts[sub] > 2:
+                    return ToolMessage(
+                        content=(
+                            f"【派发上限已达】采集类助手「{sub}」本轮已派发 2 次，禁止再派。"
+                            "请携带已落盘的 evidence 证据直接进入研判，缺失处在报告标注【未采集】，不要继续派采集助手。"
+                        ),
+                        tool_call_id=call["id"],
+                    )
+        return await handler(request)
+
 
 def _build_agent(checkpointer):
     return create_deep_agent(
         model=model,
         system_prompt=main_agent_content["system_prompt"],
         tools=[generate_markdown, convert_md_to_pdf, read_file_content],
+        middleware=[_DispatchLimit()],
         checkpointer=checkpointer,
         subagents=[
             database_query_agent,
@@ -121,6 +151,7 @@ async def run_deep_agent(task_query: str, session_id: str, resume: bool = False)
 
     dir_token = set_session_context(session_dir_str)
     id_token = set_thread_context(session_id)
+    _dispatch_count.set({})  # 每轮任务重置采集派发计数
     monitor.report_session_dir(session_dir_str)
 
     path_instruction = f"""
@@ -133,7 +164,12 @@ async def run_deep_agent(task_query: str, session_id: str, resume: bool = False)
     3. 使用相对路径，禁止使用绝对路径
     4. 若存在上传文件，请先分析内容
     """
-    config = {"configurable": {"thread_id": session_id}}
+    config = {
+        "configurable": {"thread_id": session_id},
+        # 硬刹车：防止核验/研判 agent 在异常输入下无限重复读证据。
+        # prompt 里的"返工最多 2 轮"是软约束，这里用 LangGraph 步数上限兜底。
+        "recursion_limit": int(cfg.get("agent", {}).get("recursion_limit", 60)),
+    }
 
     if resume:
         stream_input = None  # 从 checkpoint 续跑

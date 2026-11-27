@@ -21,15 +21,22 @@
 """
 import asyncio
 import builtins
+import json
 import os
+import threading
+import time
+from collections import deque
 from concurrent.futures import Future
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import WebSocket
+from langchain.agents.middleware import AgentMiddleware
+from langchain_core.messages import HumanMessage
 from loguru import logger
 
-from core.context import get_session_id
+from core.context import get_session_dir, get_session_id
 
 # 控制台回显（脚本单跑时想直接看事件流：set MONITOR_ECHO=1）
 # 惰性读取：import 时 .env 可能还没被 core.config 加载
@@ -98,24 +105,187 @@ def build_event(event: str, message: str, data: Optional[dict] = None, session_i
     }
 
 
+class StuckDetector:
+    """借鉴 OpenHands StuckDetector：滑动窗口检测重复动作，防止无限循环。
+
+    只发告警、不强制打断 agent——避免误杀正常的多轮迭代（如 NL2SQL 3 次尝试）。
+    按 session 隔离，避免多会话串台。
+    """
+
+    WINDOW = 12            # 观察最近 12 个 tool_start 事件
+    THRESHOLD = 4          # 同一 (工具名+参数签名) 在窗口内出现 >=4 次 → 告警
+    ALERT_COOLDOWN = 5     # 同一签名告警后，冷却 5 次调用再告警，避免刷屏
+
+    ALERT_LIMIT = 3            # 本轮告警累计 >=3 次 → 主 agent 注入收尾指令（防空转）
+
+    def __init__(self):
+        self._events: dict[str, deque] = {}       # sid → deque of (tool, sig)
+        self._last_alert: dict[str, dict[str, int]] = {}  # sid → {sig: 当时的调用计数}
+        self._alert_total: dict[str, int] = {}    # sid → 本轮告警累计次数（供 agent 读）
+        self._nudged_sessions: set[str] = set()   # 已注入收尾指令的会话（随 reset 清空）
+
+    def get_alert_count(self, sid: str) -> int:
+        """返回本会话累计告警次数，供主 agent 判断是否需要收尾。"""
+        return self._alert_total.get(sid, 0)
+
+    def mark_nudged(self, sid: str) -> bool:
+        """标记会话已注入收尾指令；返回 True 表示本次首次注入。"""
+        if sid in self._nudged_sessions:
+            return False
+        self._nudged_sessions.add(sid)
+        return True
+
+    def reset(self, sid: str) -> None:
+        """每轮任务开始时重置该会话的检测与告警计数。"""
+        self._events.pop(sid, None)
+        self._last_alert.pop(sid, None)
+        self._alert_total.pop(sid, None)
+        self._nudged_sessions.discard(sid)
+
+    def observe(self, sid: str, tool: str, args: dict) -> str | None:
+        """记录一次 tool_start，返回告警文案（若判定卡死），否则 None。
+
+        只判定「同工具 + 同参数」重复（对齐 OpenHands StuckDetector：它的五种模式
+        全部基于同一动作比较，从不因"同工具换参数多次调用"判卡死——那是正常探索）。
+
+        次数上限不归这里管：烧钱工具都已有硬上限（知识库/数据库 16、主图 10、
+        联网 5、RAGFlow 提问 8），早期预警若按工具条数触发，会把"5 轮×2 张取图"
+        这类合法高频误判为卡死，进而注入收尾指令掐断采集。
+        """
+        if not sid:
+            return None
+        sig = json.dumps(args, sort_keys=True, ensure_ascii=False, default=str)[:200]
+        window = self._events.setdefault(sid, deque(maxlen=self.WINDOW))
+        window.append((tool, sig))
+
+        count = sum(1 for t, s in window if t == tool and s == sig)
+        last = self._last_alert.setdefault(sid, {})
+        if count >= self.THRESHOLD:
+            prev_count = last.get(sig, -self.ALERT_COOLDOWN)
+            if not (prev_count >= 0 and count - prev_count < self.ALERT_COOLDOWN):
+                last[sig] = count
+                self._alert_total[sid] = self._alert_total.get(sid, 0) + 1
+                return f"疑似重复动作：工具「{tool}」在最近 {len(window)} 步内以相同参数调用 {count} 次，建议核查是否卡死"
+        return None
+
+
+class StuckNudgeMiddleware(AgentMiddleware):
+    """本会话卡死告警累计达阈值时，注入一条强指令引导 agent 用现有证据收尾。
+
+    只注入一次（ContextVar 标记），避免每轮模型调用重复堆消息。挂在采集类子 agent 上——
+    空转发生在子 agent 内部，指令必须进它的模型请求才有效。
+    """
+    name = "stuck_nudge"
+
+    def __init__(self, alert_limit: int = 3):
+        self.alert_limit = alert_limit
+
+    async def awrap_model_call(self, request, handler):
+        sid = get_session_id()
+        if sid and monitor.get_stuck_count(sid) >= self.alert_limit and monitor.mark_nudged(sid):
+            nudge = HumanMessage(
+                content=(
+                    "【系统硬指令·防空转】检测到本轮存在大量重复工具调用，已触发成本保护。"
+                    "立即停止一切检索/查询，用已落盘 evidence 中现有证据直接撰写并落盘报告，"
+                    "缺数据的部分如实标注【未采集】，不要再调用任何采集工具。"
+                )
+            )
+            return await handler(request.override(messages=list(request.messages) + [nudge]))
+        return await handler(request)
+
+
 class ToolMonitor:
     """单例事件入口：ContextVar 定位会话 → 直推 WebSocket（无连接则走脚本模式）。"""
 
     _instance = None
+    _HISTORY_MAX = 200  # 环形缓冲上限：足够排障回看，又不会无限增长
+
+    _EVENTS_FILE = "events.jsonl"       # 会话事件落盘文件（append-only，审计/耗时分析用）
+    _DISK_MAX_BYTES = 2 * 1024 * 1024   # 单会话事件文件上限 2MB，超限停止追加（防跑飞）
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.manager = None
+            cls._instance._history = deque(maxlen=cls._HISTORY_MAX)
+            cls._instance._detector = StuckDetector()
+            cls._instance._disk_lock = threading.Lock()
         return cls._instance
 
     # ---- 核心发送 ----
     def _emit(self, event: str, message: str, data: Optional[dict[str, Any]] = None):
         payload = build_event(event, message, data)
+        self._history.append(payload)   # 环形缓冲：测试/排障可回看最近事件
+        self._to_disk(payload)          # 旁路落盘：失败不影响推送
         self._to_websocket(payload)
         self._to_runtime(payload)
+        self._detect_stuck(payload, data)  # 重复动作检测（旁路，告警不打断）
         if _echo_enabled():
             logger.info(f"[monitor:{event}] {message}")
+
+    def _to_disk(self, payload: dict):
+        """事件 append-only 落盘到会话目录 events.jsonl。
+
+        逐条 flush 保证进程被杀也不丢已发出的事件；带毫秒时间戳便于算耗时。
+        会话目录由 ContextVar 提供（session_id 已在 WS 入口白名单校验）。
+        """
+        session_dir = get_session_dir()
+        if not session_dir:
+            return  # 脚本模式/无会话上下文：不落盘
+        try:
+            path = Path(session_dir) / self._EVENTS_FILE
+            with self._disk_lock:
+                if path.exists() and path.stat().st_size >= self._DISK_MAX_BYTES:
+                    return  # 超限保护：静默停止追加，避免日志跑飞占满磁盘
+                path.parent.mkdir(parents=True, exist_ok=True)
+                record = dict(payload)
+                record["ts_ms"] = int(time.time() * 1000)
+                with path.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+                    f.flush()
+        except Exception as e:  # 落盘失败不能影响业务主流程
+            logger.warning(f"[monitor] 事件落盘失败（不影响主流程）：{type(e).__name__}: {e}")
+
+    def _detect_stuck(self, payload: dict, data: Optional[dict]):
+        """对 tool_start 事件做重复检测；命中则发 stuck_detected 告警。"""
+        if payload.get("event") != "tool_start":
+            return
+        sid = payload.get("session_id", "")
+        tool = (data or {}).get("tool_name", "") or "未知工具"
+        alert = self._detector.observe(sid, tool, (data or {}).get("args") or {})
+        if alert:
+            self._emit("stuck_detected", alert, {"tool_name": tool})
+
+    def get_stuck_count(self, sid: str) -> int:
+        """本会话累计卡死告警次数，供主 agent 判断是否需要收尾。"""
+        return self._detector.get_alert_count(sid)
+
+    def mark_nudged(self, sid: str) -> bool:
+        """标记本会话已注入收尾指令；返回 True 表示首次注入。"""
+        return self._detector.mark_nudged(sid)
+
+    def reset_stuck(self, sid: str) -> None:
+        """每轮任务开始时重置该会话的卡死检测状态。"""
+        self._detector.reset(sid)
+
+    # ---- 测试 / 排障接口 ----
+    def get_event_history(self, limit: int = 50) -> list[dict]:
+        """最近事件快照（新→旧），每条即完整信封。测试可断言推送了什么。"""
+        return list(reversed(self._history))[:limit]
+
+    def get_stats(self) -> dict:
+        """推送健康度快照：丢弃数 / 活跃连接 / 缓冲条数。"""
+        return {
+            "dropped": self.manager.dropped if self.manager else 0,
+            "connections": len(self.manager.active_connections) if self.manager else 0,
+            "buffered": len(self._history),
+        }
+
+    def reset_stats(self):
+        """清空缓冲与丢弃计数——测试 fixture 中调用，保证用例间隔离。"""
+        self._history.clear()
+        if self.manager:
+            self.manager.dropped = 0
 
     def _to_websocket(self, payload: dict):
         manager = self.manager

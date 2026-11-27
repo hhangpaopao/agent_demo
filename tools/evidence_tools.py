@@ -9,7 +9,11 @@
 
 注意：本项目的 read_file_content 只取 Path(filename).name，无法读子目录文件，
 所以证据读取单独提供 read_evidence(layer, kind) —— 参数化而非传路径，更安全。
+
+跨线程修复：工具改为 async，在事件循环内读取会话 ContextVar（同步工具会被
+LangGraph 丢进线程池，Python 3.12 以下 ContextVar 不传播 → 拿到空目录）。
 """
+import asyncio
 import json
 from pathlib import Path
 
@@ -37,7 +41,7 @@ def _safe_layer(layer: str) -> str:
 
 
 @tool
-def save_evidence(layer: str, findings: str, raw: str, sources: str = "[]") -> str:
+async def save_evidence(layer: str, findings: str, raw: str, sources: str = "[]") -> str:
     """采集完成后落盘本层证据（供后续研判与核验读取）。
 
     :param layer: 采集层，只能是 data（数据库）/ network（网络）/ document（文档知识库）之一
@@ -48,7 +52,14 @@ def save_evidence(layer: str, findings: str, raw: str, sources: str = "[]") -> s
     """
     layer = _safe_layer(layer)
     monitor.report_tool(tool_name=f"证据落盘：save_evidence({layer})", args={"layer": layer})
+    # root 必须在事件循环内取（读会话 ContextVar），之后的纯文件 IO 丢线程池
     root = _evidence_root()
+    await asyncio.to_thread(_write_evidence, root, layer, findings, raw, sources)
+    return f"证据已落盘：evidence/{layer}/（findings.md / raw.md / sources.json），index.md 已更新"
+
+
+def _write_evidence(root: Path, layer: str, findings: str, raw: str, sources: str) -> None:
+    """同步写盘：由 save_evidence 经 to_thread 调用，不读任何 ContextVar。"""
     layer_dir = root / layer
     layer_dir.mkdir(parents=True, exist_ok=True)
     (layer_dir / "findings.md").write_text(findings.strip() + "\n", encoding="utf-8")
@@ -62,7 +73,6 @@ def save_evidence(layer: str, findings: str, raw: str, sources: str = "[]") -> s
     (layer_dir / "sources.json").write_text(
         json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    # 更新索引：扫描三层实际落盘情况
     lines = ["# 证据索引", ""]
     for name in _LAYERS:
         d = root / name
@@ -70,11 +80,10 @@ def save_evidence(layer: str, findings: str, raw: str, sources: str = "[]") -> s
         lines.append(f"- {name}: {'已采集' if ready else '缺失'}")
     lines.append("")
     (root / "index.md").write_text("\n".join(lines), encoding="utf-8")
-    return f"证据已落盘：evidence/{layer}/（findings.md / raw.md / sources.json），index.md 已更新"
 
 
 @tool
-def read_evidence(layer: str, kind: str) -> str:
+async def read_evidence(layer: str, kind: str) -> str:
     """读取某层的证据文件，供研判/核验使用。
 
     :param layer: data / network / document 之一
@@ -95,6 +104,7 @@ def read_evidence(layer: str, kind: str) -> str:
     if not path.exists():
         return f"证据缺失：{path.name} 未落盘。若为某层不存在，请在报告中标注'该层未采集'，不要臆造。"
     try:
-        return path.read_text(encoding="utf-8")[:50000]
+        text = await asyncio.to_thread(path.read_text, encoding="utf-8")
+        return text[:50000]
     except UnicodeDecodeError:
         return f"证据文件 {path.name} 非文本格式，无法读取。"

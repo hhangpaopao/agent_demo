@@ -1,4 +1,9 @@
-"""MD → PDF 转换（Windows 下优先 Word COM 引擎；失败时按约定降级返回 md 路径，禁止静默失败）。"""
+"""MD → PDF 转换（Windows 下优先 Word COM 引擎；失败时按约定降级返回 md 路径，禁止静默失败）。
+
+跨线程修复：工具改为 async，在事件循环内读取会话目录 ContextVar；
+Word COM 转换是阻塞调用，用 asyncio.to_thread 包一层。
+"""
+import asyncio
 from langchain_core.tools import tool
 
 from api.monitor import monitor
@@ -6,7 +11,7 @@ from core.context import get_session_dir
 
 
 @tool
-def convert_md_to_pdf(filename: str) -> str:
+async def convert_md_to_pdf(filename: str) -> str:
     """将当前会话工作目录中的 Markdown 报告转换为 PDF。
     仅在用户明确要求导出 PDF 时调用。
     :param filename: 已存在的 md 文件名（相对会话目录）
@@ -26,7 +31,7 @@ def convert_md_to_pdf(filename: str) -> str:
     try:
         from utils.word_converter import convert_md_to_pdf_via_word
 
-        result = convert_md_to_pdf_via_word(md_path, pdf_path)
+        result = await asyncio.to_thread(convert_md_to_pdf_via_word, md_path, pdf_path)
         if pdf_path.exists():
             return f"PDF 已生成：{pdf_path.name}"
         return f"PDF 转换失败：{result}。降级：请使用 Markdown 报告文件 {md_path.name}。"

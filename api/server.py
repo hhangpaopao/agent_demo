@@ -21,9 +21,16 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSock
 from agent.main_agent import run_deep_agent, init_agent, close_agent
 from api.monitor import monitor, manager, build_event
 from core.config import PROJECT_ROOT, cfg
-from core.context import reset_session_context, set_session_context, set_thread_context
+from core.context import (
+    is_valid_session_id,
+    reset_session_context,
+    set_session_context,
+    set_thread_context,
+)
 from tools.tavily_tool import reset_search_budget
 from tools.db_fallback import reset_db_budget
+from tools.ragflow_tools import reset_ask_budget
+from tools.vlm_tools import reset_vlm_budget
 
 app = FastAPI(title="deep_pro", version="0.1.0")
 
@@ -46,12 +53,17 @@ async def shutdown():
 
 
 async def _ttl_cleanup_loop():
-    """TTL 惰性清理：每小时清理过期会话 dataset（计划书 3.3）。"""
+    """TTL 惰性清理：每小时清理过期会话 dataset（计划书 3.3）。
+
+    首轮延迟 60s 再执行，避免启动时同步阻塞 RAGFlow 连接堵死 startup；
+    同步网络调用放线程池，不占事件循环。
+    """
     from tools.ragflow_tools import cleanup_expired_datasets
 
+    await asyncio.sleep(60)
     while True:
         try:
-            removed = cleanup_expired_datasets()
+            removed = await asyncio.to_thread(cleanup_expired_datasets)
             if removed:
                 print(f"[ttl_cleanup] 已清理过期 dataset：{removed}")
         except Exception as e:
@@ -59,9 +71,18 @@ async def _ttl_cleanup_loop():
         await asyncio.sleep(3600)
 
 
+_INVALID_SESSION_MSG = (
+    "非法 session_id：仅允许字母、数字、下划线、短横线，长度 1-64"
+)
+
+
 @app.websocket("/ws/{session_id}")
 async def ws_endpoint(ws: WebSocket, session_id: str):
     """会话主通道：reader 接收指令，Monitor 通过 ContextVar 直推事件。"""
+    if not is_valid_session_id(session_id):
+        # 必须在 accept 之前 close，否则握手已建立再断会被当成异常断开
+        await ws.close(code=1008, reason=_INVALID_SESSION_MSG)
+        return
     loop = asyncio.get_running_loop()
     manager.set_loop(loop)          # 绑定本次连接所在的事件循环
     await manager.connect(ws, session_id)   # accept + 登记 session_id → WS
@@ -72,6 +93,9 @@ async def ws_endpoint(ws: WebSocket, session_id: str):
         nonlocal ctx_tokens
         reset_search_budget()
         reset_db_budget()  # 决策1：每轮任务重置 nl2sql 尝试预算与候选表缓存
+        reset_ask_budget()  # 每轮重置助手提问熔断计数，避免跨轮累积误伤
+        reset_vlm_budget()  # 每轮重置主图解析计数（10 次/轮）
+        monitor.reset_stuck(session_id)  # 每轮重置卡死检测，避免跨轮误触发收尾
         try:
             ctx_tokens = (
                 set_session_context(str(PROJECT_ROOT / cfg["paths"]["output_dir"] / f"session_{session_id}")),
@@ -130,6 +154,8 @@ async def ws_endpoint(ws: WebSocket, session_id: str):
 @app.post("/api/upload_material")
 async def upload_material(session_id: str, file: UploadFile = File(...)):
     """上传用户资料：pdf/md。后台执行裁剪版入库管线，进度经 WS pipeline 事件推送。"""
+    if not is_valid_session_id(session_id):
+        raise HTTPException(400, _INVALID_SESSION_MSG)
     max_mb = int(cfg["upload"]["max_mb"])
     if file.size and file.size > max_mb * 1024 * 1024:
         raise HTTPException(413, f"文件超过 {max_mb}MB 限制")
@@ -176,6 +202,8 @@ async def upload_status(task_id: str):
 @app.post("/api/report/pdf")
 async def report_pdf(session_id: str, filename: str):
     """导出报告 PDF：按需触发（计划书 3.4），复用 Word COM 转换器。"""
+    if not is_valid_session_id(session_id):
+        raise HTTPException(400, _INVALID_SESSION_MSG)
     session_dir = PROJECT_ROOT / cfg["paths"]["output_dir"] / f"session_{session_id}"
     md_path = session_dir / Path(filename).name
     if not md_path.exists():

@@ -25,10 +25,12 @@ dependencies = [
     "mysql-connector-python",
     "qdrant-client",
     "elasticsearch[async]",
+    "jieba>=0.42.1",  # 中文分词：问数图关键词提取（vendor/wenshu 节点依赖）
     # ---- RAGFlow / 对象存储 ----
     "ragflow-sdk",
     "minio",
     # ---- 文档转换 ----
+    # "mineru[all]",  # PDF → MD 本地 CLI（含 torch + 模型，GB 级）。默认最小集不含；需 PDF 上传时手动 uv add 'mineru[all]'
     "markdown",
     "pywin32; sys_platform == 'win32'",
     # ---- 配置/日志/工具 ----
@@ -38,6 +40,8 @@ dependencies = [
     "python-dotenv",
     "httpx",
     "cryptography",
+    # ---- 测试 ----
+    "pytest",
 ]
 
 [tool.uv]
